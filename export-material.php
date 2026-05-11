@@ -14,7 +14,7 @@ define('DB_NAME', 'recursos_db');
 define('DB_PREFIX', 'exfc47jf_');
 define('OUTPUT_DIR', __DIR__ . '/material-json');
 define('POSTS_PER_FILE', 400);
-define('WP_URL', 'http://localhost/recursos');
+define('WP_URL', 'https://test-1.mendoza.edu.ar');
 
 // ---- Conexión ----
 $mysqli = new mysqli(DB_HOST, DB_USER, DB_PASSWORD, DB_NAME);
