@@ -1,7 +1,3 @@
-# Generated JSON data (regenerate with export-material.php)
-material-json/*.json
-!material-json/.gitkeep
-
 # IDE
 .idea/
 .vscode/
