@@ -1,0 +1,13 @@
+# Generated JSON data (regenerate with export-material.php)
+material-json/*.json
+!material-json/.gitkeep
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
