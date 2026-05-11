@@ -10,4 +10,4 @@ material-json/*.json
 
 # OS
 .DS_Store
-Thumbs.db
+Thumbs.db!material-json/*.json
