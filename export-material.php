@@ -119,7 +119,8 @@ foreach ($postChunks as $chunkIndex => $chunk) {
             $stmt->execute();
             $res = $stmt->get_result();
             if ($row = $res->fetch_assoc()) {
-                $featured_image_url = $row['guid'];
+                $local_url = $row['guid'];
+                $featured_image_url = str_replace('http://localhost/recursos', WP_URL, $local_url);
             }
         }
 
