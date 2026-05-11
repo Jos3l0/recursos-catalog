@@ -105,12 +105,16 @@
     <aside class="filters" id="filters">
       <div class="filter-title">Filtros</div>
       <div class="filter-group">
-        <div class="filter-group-title">Nivel Educativo</div>
-        <div class="filter-options" id="categoryFilter"></div>
+        <div class="filter-group-title">Área Temática</div>
+        <div class="filter-options" id="areaFilter"></div>
       </div>
       <div class="filter-group">
-        <div class="filter-group-title">Etiquetas</div>
-        <div class="filter-options" id="tagFilter"></div>
+        <div class="filter-group-title">Nivel Educativo</div>
+        <div class="filter-options" id="nivelFilter"></div>
+      </div>
+      <div class="filter-group">
+        <div class="filter-group-title">Destinatarios</div>
+        <div class="filter-options" id="destFilter"></div>
       </div>
       <button class="clear-filters" onclick="clearFilters()">Limpiar filtros</button>
     </aside>
@@ -135,47 +139,111 @@
   <div id="detailPage"></div>
   <script src="https://cdn.jsdelivr.net/npm/fuse.js@7.0.0/dist/fuse.min.js"></script>
   <script>
-    const CONFIG = { dataPath: './material-json/', resultsPerPage: 24, fuseKeys: [{ name: 'title', weight: 0.4 }, { name: 'search_blob', weight: 0.3 }, { name: 'content_text', weight: 0.2 }] };
-    const state = { posts: [], allPosts: [], filteredPosts: [], page: 1, sortBy: 'date-desc', searchQuery: '', fuse: null, categoryData: {}, tagData: {}, filters: { category: [], tag: [] } };
-    const activeFilters = { category: [], tag: [] };
-    
-    // Helpers para campos array
-    function getCategoryNames(post) { return post.categories && post.categories.length ? post.categories.map(a => a.name).join(', ') : ''; }
-    function getTagNames(post) { return post.tags && post.tags.length ? post.tags.map(a => a.name).join(', ') : ''; }
-    function getCategorySlugs(post) { return post.categories ? post.categories.map(a => a.slug) : []; }
-    function getTagSlugs(post) { return post.tags ? post.tags.map(a => a.slug) : []; }
-    
+    const CONFIG = {
+      dataPath: './material-json/',
+      resultsPerPage: 24,
+      fuseKeys: [
+        { name: 'title', weight: 0.4 },
+        { name: 'search_blob', weight: 0.3 },
+        { name: 'content_text', weight: 0.2 }
+      ]
+    };
+
+    const state = {
+      allPosts: [],
+      filteredPosts: [],
+      page: 1,
+      sortBy: 'date-desc',
+      searchQuery: '',
+      fuse: null,
+      areaData: {},
+      nivelData: {},
+      destData: {},
+      filters: {
+        area: [],
+        nivel: [],
+        destinatario: []
+      }
+    };
+
+    const activeFilters = { area: [], nivel: [], destinatario: [] };
+
+    // ---- Helpers ----
+    function getAreaName(post) {
+      return post.area_tematica && post.area_tematica.length
+        ? post.area_tematica.map(a => a.name).join(', ')
+        : '';
+    }
+    function getNivelName(post) {
+      return post.nivel_educativo && post.nivel_educativo.length
+        ? post.nivel_educativo.map(a => a.name).join(', ')
+        : '';
+    }
+    function getDestName(post) {
+      return post.destinatarios && post.destinatarios.length
+        ? post.destinatarios.map(a => a.name).join(', ')
+        : '';
+    }
+    function getAreaSlugs(post) {
+      return post.area_tematica ? post.area_tematica.map(a => a.slug) : [];
+    }
+    function getNivelSlugs(post) {
+      return post.nivel_educativo ? post.nivel_educativo.map(a => a.slug) : [];
+    }
+    function getDestSlugs(post) {
+      return post.destinatarios ? post.destinatarios.map(a => a.slug) : [];
+    }
     function $(id) { return document.getElementById(id); }
-    function truncate(str, len) { return str && str.length > len ? str.slice(0, len) + '...' : str || ''; }
-    function formatDate(dateStr) { const d = new Date(dateStr); return d.toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' }); }
-    function escapeHtml(str) { if (!str) return ''; return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
-    
+    function truncate(str, len) {
+      return str && str.length > len ? str.slice(0, len) + '...' : str || '';
+    }
+    function formatDate(dateStr) {
+      const d = new Date(dateStr);
+      return d.toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+    }
+    function escapeHtml(str) {
+      if (!str) return '';
+      return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    }
+    function debounce(fn, ms) {
+      let timeout;
+      return function(...args) {
+        clearTimeout(timeout);
+        timeout = setTimeout(() => fn.apply(this, args), ms);
+      };
+    }
+
+    // ---- Carga de datos ----
     async function loadData() {
       try {
         console.log('Cargando índice...');
         const indexRes = await fetch(CONFIG.dataPath + 'index.json');
         const index = await indexRes.json();
         console.log('Dataset:', index.counts.posts, 'posts');
-        
+
+        // Cargar todos los archivos de posts en paralelo
         const postFiles = index.files.posts;
         const postResponses = await Promise.all(postFiles.map(f => fetch(CONFIG.dataPath + f)));
         const postContents = await Promise.all(postResponses.map(r => r.json()));
         state.allPosts = postContents.flat();
         console.log('Cargados', state.allPosts.length, 'posts');
-        
-        const [catRes, tagRes] = await Promise.all([
-          fetch(CONFIG.dataPath + index.files.categories),
-          fetch(CONFIG.dataPath + index.files.tags)
+
+        // Cargar los 3 JSON de taxonomías en paralelo
+        const [areaRes, nivelRes, destRes] = await Promise.all([
+          fetch(CONFIG.dataPath + index.files.area_tematica),
+          fetch(CONFIG.dataPath + index.files.nivel_educativo),
+          fetch(CONFIG.dataPath + index.files.destinatarios)
         ]);
-        
-        state.categoryData = await catRes.json();
-        state.tagData = await tagRes.json();
-        
+
+        state.areaData = await areaRes.json();
+        state.nivelData = await nivelRes.json();
+        state.destData = await destRes.json();
+
         initFilters();
         initFuse();
         renderFilters();
         applyFilters();
-        
+
         $('loading').classList.add('hidden');
         handleRoute();
         return true;
@@ -185,7 +253,8 @@
         return false;
       }
     }
-    
+
+    // ---- Fuse.js - Búsqueda difusa ----
     function initFuse() {
       state.fuse = new Fuse(state.allPosts, {
         keys: CONFIG.fuseKeys,
@@ -197,30 +266,52 @@
         findAllMatches: false
       });
     }
-    
+
+    // ---- Filtros ----
     function initFilters() {
-      state.filters.category = Object.entries(state.categoryData).map(([key, val]) => ({ id: key, name: val.name.replace(/^- /, ''), count: val.total_posts }));
-      state.filters.tag = Object.entries(state.tagData).map(([key, val]) => ({ id: key, name: val.name, count: val.total_posts }));
+      state.filters.area = Object.entries(state.areaData).map(([key, val]) => ({
+        id: key,
+        name: val.name.replace(/^- /, ''),
+        count: val.total_posts
+      }));
+      state.filters.nivel = Object.entries(state.nivelData).map(([key, val]) => ({
+        id: key,
+        name: val.name.replace(/^- /, ''),
+        count: val.total_posts
+      }));
+      state.filters.destinatario = Object.entries(state.destData).map(([key, val]) => ({
+        id: key,
+        name: val.name.replace(/^- /, ''),
+        count: val.total_posts
+      }));
     }
-    
+
     function renderFilters() {
       const isActive = (type, id) => activeFilters[type].includes(id);
-      
-      $('categoryFilter').innerHTML = state.filters.category.map(f => 
-        '<div class="filter-option ' + (isActive('category', f.id) ? 'active' : '') + '" data-type="category" data-id="' + f.id + '">' +
-        '<span class="filter-checkbox">' + (isActive('category', f.id) ? '✓' : '') + '</span>' +
+
+      $('areaFilter').innerHTML = state.filters.area.map(f =>
+        '<div class="filter-option ' + (isActive('area', f.id) ? 'active' : '') + '" data-type="area" data-id="' + f.id + '">' +
+        '<span class="filter-checkbox">' + (isActive('area', f.id) ? '✓' : '') + '</span>' +
         '<span>' + f.name + '</span><span class="filter-count">(' + f.count + ')</span></div>'
       ).join('');
-      
-      $('tagFilter').innerHTML = state.filters.tag.map(f => 
-        '<div class="filter-option ' + (isActive('tag', f.id) ? 'active' : '') + '" data-type="tag" data-id="' + f.id + '">' +
-        '<span class="filter-checkbox">' + (isActive('tag', f.id) ? '✓' : '') + '</span>' +
+
+      $('nivelFilter').innerHTML = state.filters.nivel.map(f =>
+        '<div class="filter-option ' + (isActive('nivel', f.id) ? 'active' : '') + '" data-type="nivel" data-id="' + f.id + '">' +
+        '<span class="filter-checkbox">' + (isActive('nivel', f.id) ? '✓' : '') + '</span>' +
         '<span>' + f.name + '</span><span class="filter-count">(' + f.count + ')</span></div>'
       ).join('');
-      
-      document.querySelectorAll('.filter-option').forEach(el => el.addEventListener('click', () => toggleFilter(el.dataset.type, el.dataset.id)));
+
+      $('destFilter').innerHTML = state.filters.destinatario.map(f =>
+        '<div class="filter-option ' + (isActive('destinatario', f.id) ? 'active' : '') + '" data-type="destinatario" data-id="' + f.id + '">' +
+        '<span class="filter-checkbox">' + (isActive('destinatario', f.id) ? '✓' : '') + '</span>' +
+        '<span>' + f.name + '</span><span class="filter-count">(' + f.count + ')</span></div>'
+      ).join('');
+
+      document.querySelectorAll('.filter-option').forEach(el =>
+        el.addEventListener('click', () => toggleFilter(el.dataset.type, el.dataset.id))
+      );
     }
-    
+
     function toggleFilter(type, id) {
       const arr = activeFilters[type];
       const idx = arr.indexOf(id);
@@ -228,88 +319,116 @@
       renderFilters();
       applyFilters();
     }
-    
+
     function clearFilters() {
-      activeFilters.category = [];
-      activeFilters.tag = [];
+      activeFilters.area = [];
+      activeFilters.nivel = [];
+      activeFilters.destinatario = [];
       $('searchInput').value = '';
       state.searchQuery = '';
       renderFilters();
       applyFilters();
     }
-    
+
+    // ---- Aplicar filtros y búsqueda ----
     function applyFilters() {
-      let results = state.searchQuery ? state.fuse.search(state.searchQuery).map(r => r.item) : [...state.allPosts];
-      
+      // 1. Búsqueda difusa con Fuse.js
+      let results = state.searchQuery
+        ? state.fuse.search(state.searchQuery).map(r => r.item)
+        : [...state.allPosts];
+
+      // 2. Normalizar para búsqueda sin acentos
       const removeAccents = str => str.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-      
-      let hasPriority = false;
+
+      // 3. Priorización de resultados
       if (state.searchQuery) {
         const queryLower = state.searchQuery.toLowerCase();
         const queryNorm = removeAccents(queryLower);
         const queryWords = queryNorm.split(/\s+/).filter(Boolean);
-        
+
         if (queryWords.length > 0) {
           results = results.map(post => {
             const titleNorm = removeAccents((post.title || '').toLowerCase());
             const contentNorm = removeAccents(((post.content_text || '') + ' ' + (post.search_blob || '')).toLowerCase());
-            
+
             let priority = 0;
+            // Frase completa en título
             if (titleNorm.includes(queryNorm)) priority += 100;
+            // Frase completa en contenido
             if (contentNorm.includes(queryNorm)) priority += 50;
-            
+            // Palabras individuales
             queryWords.forEach(word => {
               if (word.length > 2) {
                 if (titleNorm.includes(word)) priority += 10;
                 if (contentNorm.includes(word)) priority += 1;
               }
             });
-            
+
             return { ...post, _priority: priority };
           });
-          
+
+          // Filtrar: todas las palabras deben estar
           results = results.filter(post => {
             const titleNorm = removeAccents((post.title || '').toLowerCase());
             const contentNorm = removeAccents(((post.content_text || '') + ' ' + (post.search_blob || '')).toLowerCase());
             const allNorm = titleNorm + ' ' + contentNorm;
             return queryWords.every(word => allNorm.includes(word));
           });
-          
-          hasPriority = true;
         }
       }
-      
-      if (activeFilters.category.length > 0 || activeFilters.tag.length > 0) {
+
+      // 4. Filtros por taxonomía (intersección de sets)
+      if (activeFilters.area.length > 0 || activeFilters.nivel.length > 0 || activeFilters.destinatario.length > 0) {
         const idSets = [];
-        
-        if (activeFilters.category.length > 0) {
+
+        if (activeFilters.area.length > 0) {
           const ids = [];
-          activeFilters.category.forEach(slug => { if (state.categoryData[slug] && state.categoryData[slug].ids) ids.push(...state.categoryData[slug].ids); });
+          activeFilters.area.forEach(slug => {
+            if (state.areaData[slug] && state.areaData[slug].ids) {
+              ids.push(...state.areaData[slug].ids);
+            }
+          });
           idSets.push(new Set(ids));
         }
-        if (activeFilters.tag.length > 0) {
+        if (activeFilters.nivel.length > 0) {
           const ids = [];
-          activeFilters.tag.forEach(slug => { if (state.tagData[slug] && state.tagData[slug].ids) ids.push(...state.tagData[slug].ids); });
+          activeFilters.nivel.forEach(slug => {
+            if (state.nivelData[slug] && state.nivelData[slug].ids) {
+              ids.push(...state.nivelData[slug].ids);
+            }
+          });
           idSets.push(new Set(ids));
         }
-        
+        if (activeFilters.destinatario.length > 0) {
+          const ids = [];
+          activeFilters.destinatario.forEach(slug => {
+            if (state.destData[slug] && state.destData[slug].ids) {
+              ids.push(...state.destData[slug].ids);
+            }
+          });
+          idSets.push(new Set(ids));
+        }
+
         if (idSets.length > 0) {
           let intersected = idSets[0];
-          for (let i = 1; i < idSets.length; i++) intersected = new Set([...intersected].filter(id => idSets[i].has(id)));
+          for (let i = 1; i < idSets.length; i++) {
+            intersected = new Set([...intersected].filter(id => idSets[i].has(id)));
+          }
           results = results.filter(p => intersected.has(p.id));
         }
       }
-      
+
+      // 5. Ordenar resultados
       results = sortPosts(results);
       state.filteredPosts = results;
       state.page = 1;
       renderResults();
     }
-    
+
     function sortPosts(posts) {
       const sorted = [...posts];
       const hasPriority = sorted.some(p => p._priority > 0);
-      
+
       if (hasPriority) {
         sorted.sort((a, b) => {
           const pa = a._priority || 0;
@@ -319,7 +438,7 @@
         });
         return sorted;
       }
-      
+
       switch (state.sortBy) {
         case 'date-desc': return sorted.sort((a, b) => new Date(b.date) - new Date(a.date));
         case 'date-asc': return sorted.sort((a, b) => new Date(a.date) - new Date(b.date));
@@ -328,87 +447,107 @@
         default: return sorted;
       }
     }
-    
+
+    // ---- Render ----
     function renderResults() {
+      // Limpiar _priority temporal
       state.filteredPosts = state.filteredPosts.map(({ _priority, ...post }) => post);
-      
+
       const grid = $('resultsGrid');
       const total = state.filteredPosts.length;
       const totalPages = Math.ceil(total / CONFIG.resultsPerPage);
-      
+
       $('resultsCountText').textContent = total + ' recurso' + (total !== 1 ? 's' : '') + ' encontrado' + (total !== 1 ? 's' : '');
       $('resultsCountHeader').textContent = total + ' recursos';
-      
-      if (total === 0) { grid.innerHTML = ''; $('empty').classList.remove('hidden'); $('pagination').innerHTML = ''; return; }
+
+      if (total === 0) {
+        grid.innerHTML = '';
+        $('empty').classList.remove('hidden');
+        $('pagination').innerHTML = '';
+        return;
+      }
       $('empty').classList.add('hidden');
-      
+
       const start = (state.page - 1) * CONFIG.resultsPerPage;
       const end = start + CONFIG.resultsPerPage;
       const pagePosts = state.filteredPosts.slice(start, end);
-      
+
       grid.innerHTML = pagePosts.map((post, i) => {
         const img = post.featured_image_url || 'https://www.mendoza.edu.ar/wp-content/uploads/2026/04/defecto-sin-destacadas.png';
-        const cats = getCategoryNames(post);
-        const tags = getTagNames(post);
+        const area = getAreaName(post);
+        const nivel = getNivelName(post);
+        const dest = getDestName(post);
         return '<article class="card" data-id="' + post.id + '" style="animation-delay: ' + (i * 0.02) + 's" onclick="showDetail(' + post.id + ')">' +
           '<img class="card-image" src="' + img + '" alt="' + escapeHtml(post.title) + '" loading="lazy">' +
           '<div class="card-content">' +
-          '<div class="card-meta"><span>📅 ' + formatDate(post.date) + '</span>' + (cats ? '<span class="card-category">' + cats + '</span>' : '') + '</div>' +
+          '<div class="card-meta"><span>📅 ' + formatDate(post.date) + '</span>' + (area ? '<span class="card-category">' + area + '</span>' : '') + '</div>' +
           '<h3 class="card-title">' + escapeHtml(post.title) + '</h3>' +
           '<p class="card-excerpt">' + escapeHtml(truncate(post.content_text, 120)) + '</p>' +
-          (tags ? '<div class="card-tags"><span class="card-tag">' + tags + '</span></div>' : '') +
+          (nivel ? '<div class="card-tags"><span class="card-tag">' + nivel + '</span></div>' : '') +
           '</div></article>';
       }).join('');
-      
+
       renderPagination(totalPages);
     }
-    
+
     function renderPagination(totalPages) {
       const pag = $('pagination');
       if (totalPages <= 1) { pag.innerHTML = ''; return; }
       let html = '<button class="pagination-btn" onclick="goToPage(' + (state.page - 1) + ')" ' + (state.page === 1 ? 'disabled' : '') + '>← Anterior</button>';
-      for (let i = Math.max(1, state.page - 2); i <= Math.min(totalPages, state.page + 2); i++) html += '<button class="pagination-btn ' + (i === state.page ? 'active' : '') + '" onclick="goToPage(' + i + ')">' + i + '</button>';
+      for (let i = Math.max(1, state.page - 2); i <= Math.min(totalPages, state.page + 2); i++) {
+        html += '<button class="pagination-btn ' + (i === state.page ? 'active' : '') + '" onclick="goToPage(' + i + ')">' + i + '</button>';
+      }
       html += '<button class="pagination-btn" onclick="goToPage(' + (state.page + 1) + ')" ' + (state.page === totalPages ? 'disabled' : '') + '>Siguiente →</button>';
       pag.innerHTML = html;
     }
-    
+
+    // ---- Vista detalle ----
     function showDetail(id) { window.location.hash = 'recurso/' + id; }
-    
+
     function handleRoute() {
       const hash = window.location.hash;
       if (hash.startsWith('#recurso/')) {
         const id = parseInt(hash.replace('#recurso/', ''));
         if (id) renderDetailPage(id);
-      } else { closeDetailPage(); }
+      } else {
+        closeDetailPage();
+      }
     }
-    
+
     function renderDetailPage(id) {
       const post = state.allPosts.find(p => p.id === id);
       if (!post) { window.location.hash = ''; return; }
-      
+
       const main = document.querySelector('.main');
       if (main) main.style.display = 'none';
       const header = document.querySelector('.header');
       if (header) header.style.display = 'none';
-      
+
       const img = post.featured_image_url || 'https://www.mendoza.edu.ar/wp-content/uploads/2026/04/defecto-sin-destacadas.png';
       const content = fixContentUrls(post.content_html_clean);
-      const cats = getCategoryNames(post);
-      const tags = getTagNames(post);
-      
+      const area = getAreaName(post);
+      const nivel = getNivelName(post);
+      const dest = getDestName(post);
+
       $('detailPage').innerHTML = '<div class="detail-page">' +
         '<div class="detail-header"><button class="back-btn" onclick="window.location.hash=\'\'">← Volver a resultados</button></div>' +
         '<div class="detail-container">' +
         '<h1 class="detail-title">' + escapeHtml(post.title) + '</h1>' +
-        '<div class="detail-meta"><span>📅 ' + formatDate(post.date) + '</span>' + (cats ? '<span>📁 ' + cats + '</span>' : '') + (tags ? '<span>🏷 ' + tags + '</span>' : '') + '</div>' +
+        '<div class="detail-meta"><span>📅 ' + formatDate(post.date) + '</span>' +
+        (area ? '<span>📁 ' + area + '</span>' : '') +
+        (nivel ? '<span>📚 ' + nivel + '</span>' : '') +
+        (dest ? '<span>👥 ' + dest + '</span>' : '') + '</div>' +
         '<img class="detail-image" src="' + img + '" alt="' + escapeHtml(post.title) + '">' +
         '<div class="detail-content">' + content + '</div>' +
-        '<div class="detail-tags">' + (cats ? '<span class="detail-tag">' + cats + '</span>' : '') + (tags ? '<span class="detail-tag">' + tags + '</span>' : '') + '</div>' +
-        '</div></div>';
-      
+        '<div class="detail-tags">' +
+        (area ? '<span class="detail-tag">' + area + '</span>' : '') +
+        (nivel ? '<span class="detail-tag">' + nivel + '</span>' : '') +
+        (dest ? '<span class="detail-tag">' + dest + '</span>' : '') +
+        '</div></div></div>';
+
       window.scrollTo(0, 0);
     }
-    
+
     function closeDetailPage() {
       $('detailPage').innerHTML = '';
       const main = document.querySelector('.main');
@@ -416,34 +555,39 @@
       const header = document.querySelector('.header');
       if (header) header.style.display = '';
     }
-    
+
     function fixContentUrls(html) {
       if (!html) return html;
       let content = html;
       content = content.replace(/<a[^>]*>📖 Leer<\/a>/gi, '');
       content = content.replace(/📖 Leer/g, '');
-      
-      const shortcodeRegex = /\[pdf-embedder\s+url="([^"]+\.pdf)"(?:\s+title="([^"]*)")?\s*\]/gi;
+
+      // Extraer PDFs de shortcodes y iframes
       const pdfs = [];
+
+      const shortcodeRegex = /\[pdf-embedder\s+url="([^"]+\.pdf)"(?:\s+title="([^"]*)")?\s*\]/gi;
       let match;
-      while ((match = shortcodeRegex.exec(content)) !== null) { pdfs.push({ url: match[1], title: match[2] || 'Ver PDF' }); }
+      while ((match = shortcodeRegex.exec(content)) !== null) {
+        pdfs.push({ url: match[1], title: match[2] || 'Ver PDF' });
+      }
       content = content.replace(shortcodeRegex, '');
-      
+
       const iframeRegex = /<iframe[^>]*src="[^"]*(viewer\.html|pdfjs)[^"]*file=([^"&]+)[^"]*"[^>]*><\/iframe>/gi;
       while ((match = iframeRegex.exec(content)) !== null) {
         let url = decodeURIComponent(match[2].replace(/&amp;/g, '&'));
         if (!pdfs.find(p => p.url === url)) pdfs.push({ url, title: 'Ver PDF' });
       }
       content = content.replace(iframeRegex, '');
-      
-      // Procesar jpe-pdf-embed
+
+      // Procesar jpe-pdf-embed divs
       const jpePdfRegex = /<div[^>]*class="jpe-pdf-embed"[^>]*data-pdf="([^"]+)"[^>]*>/gi;
       while ((match = jpePdfRegex.exec(content)) !== null) {
         const url = match[1].replace(/&amp;/g, '&');
         if (!pdfs.find(p => p.url === url)) pdfs.push({ url, title: 'Ver PDF' });
       }
       content = content.replace(jpePdfRegex, '');
-      
+
+      // Renderizar PDFs
       if (pdfs.length > 0) {
         let pdfSection = '<div class="pdf-section">';
         pdfs.forEach((pdf, i) => {
@@ -454,28 +598,19 @@
         pdfSection += '</div>';
         content += pdfSection;
       }
-      
-      // Arreglar URLs relativas
+
+      // Corregir URLs de uploads
       content = content.replace(/src="\/wp-content\/uploads\//g, 'src="http://localhost/recursos/wp-content/uploads/');
       content = content.replace(/href="\/wp-content\/uploads\//g, 'href="http://localhost/recursos/wp-content/uploads/');
-      content = content.replace(/src="http:\/\/localhost\/recursos\/wp-content\/uploads\//g, 'src="http://localhost/recursos/wp-content/uploads/');
-      content = content.replace(/href="http:\/\/localhost\/recursos\/wp-content\/uploads\//g, 'href="http://localhost/recursos/wp-content/uploads/');
       content = content.replace(/<iframe/g, '<iframe style="width:100%;height:450px;border:none;margin:1rem 0;border-radius:8px;"');
       return content;
     }
-    
-    function debounce(fn, ms) {
-      let timeout;
-      return function(...args) {
-        clearTimeout(timeout);
-        timeout = setTimeout(() => fn.apply(this, args), ms);
-      };
-    }
-    
+
+    // ---- Eventos ----
     function handleSearch(e) { e.preventDefault(); state.searchQuery = $('searchInput').value.trim(); applyFilters(); }
     function handleSort(value) { state.sortBy = value; applyFilters(); }
     function goToPage(page) { state.page = page; renderResults(); window.scrollTo({ top: 0, behavior: 'smooth' }); }
-    
+
     window.addEventListener('hashchange', handleRoute);
     window.addEventListener('DOMContentLoaded', loadData);
   </script>

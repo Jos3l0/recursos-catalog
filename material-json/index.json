@@ -1,14 +1,15 @@
 {
     "version": "1.0",
-    "generated_at": "2026-05-11T19:09:59+00:00",
+    "generated_at": "2026-05-11T19:39:17+00:00",
     "source": {
-        "site_url": "http:\/\/localhost\/recursos",
-        "db_name": "recursos_db"
+        "tag_slug": "material",
+        "post_status": "publish"
     },
     "counts": {
         "posts": 2485,
-        "categories": 326,
-        "tags": 91
+        "area_tematica": 8,
+        "nivel_educativo": 7,
+        "destinatarios": 3
     },
     "files": {
         "posts": [
@@ -20,7 +21,8 @@
             "posts-6.json",
             "posts-7.json"
         ],
-        "categories": "categories.json",
-        "tags": "tags.json"
+        "area_tematica": "material-area-tematica.json",
+        "nivel_educativo": "material-nivel-educativo.json",
+        "destinatarios": "material-destinatarios.json"
     }
 }
