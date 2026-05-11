@@ -1,0 +1,26 @@
+{
+    "version": "1.0",
+    "generated_at": "2026-05-11T19:09:59+00:00",
+    "source": {
+        "site_url": "http:\/\/localhost\/recursos",
+        "db_name": "recursos_db"
+    },
+    "counts": {
+        "posts": 2485,
+        "categories": 326,
+        "tags": 91
+    },
+    "files": {
+        "posts": [
+            "posts-1.json",
+            "posts-2.json",
+            "posts-3.json",
+            "posts-4.json",
+            "posts-5.json",
+            "posts-6.json",
+            "posts-7.json"
+        ],
+        "categories": "categories.json",
+        "tags": "tags.json"
+    }
+}
