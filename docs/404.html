@@ -159,7 +159,7 @@
   <script src="https://cdn.jsdelivr.net/npm/fuse.js@7.0.0/dist/fuse.min.js"></script>
   <script>
     const CONFIG = {
-      dataPath: './material-json/',
+      dataPath: '/material-json/',
       resultsPerPage: 24,
       fuseKeys: [
         { name: 'title', weight: 0.4 },
@@ -562,22 +562,20 @@
       const originalUrl = 'https://test-1.mendoza.edu.ar/material/' + post.slug + '/';
 
       $('detailPage').innerHTML = '<div class="detail-page">' +
-        '<div class="detail-header"><button class="back-btn" onclick="history.back()">← Volver a resultados</button><a href="' + originalUrl + '" target="_blank" rel="noopener" class="back-btn" style="margin-left:0.5rem;background:#10b981;color:white;border-color:#10b981;">🌐 Ver en sitio original</a></div>' +
+        '<div class="detail-header"><button class="back-btn" onclick="history.back()">← Volver a resultados</button></div>' +
         '<div class="detail-container">' +
         '<div class="detail-breadcrumb"><a href="https://test-1.mendoza.edu.ar/" target="_blank" rel="noopener">DGE Mendoza</a> <span>›</span> <a href="https://test-1.mendoza.edu.ar/material/" target="_blank" rel="noopener">Recursos</a> <span>›</span> <span>' + escapeHtml(post.title) + '</span></div>' +
         '<div class="detail-title-wrap"><h1 class="detail-title">' + escapeHtml(post.title) + '</h1><a href="' + originalUrl + '" target="_blank" rel="noopener" class="detail-permalink" title="Enlace permanente">🔗</a></div>' +
         '<div class="detail-meta"><span>📅 ' + formatDate(post.date) + '</span>' +
         (area ? '<span class="detail-meta-sep">•</span><span>📁 ' + area + '</span>' : '') +
         (nivel ? '<span class="detail-meta-sep">•</span><span>📚 ' + nivel + '</span>' : '') +
-        (dest ? '<span class="detail-meta-sep">•</span><span>👥 ' + dest + '</span>' : '') +
-        '<span class="detail-meta-sep">•</span><a href="' + originalUrl + '" target="_blank" rel="noopener" class="detail-original-link">↗ Ver recurso completo</a></div>' +
+        (dest ? '<span class="detail-meta-sep">•</span><span>👥 ' + dest + '</span>' : '') + '</div>' +
         '<img class="detail-image" src="' + img + '" alt="' + escapeHtml(post.title) + '">' +
         '<div class="detail-content">' + content + '</div>' +
         '<div class="detail-footer">' +
         (area ? '<span class="detail-tag">' + area + '</span>' : '') +
         (nivel ? '<span class="detail-tag">' + nivel + '</span>' : '') +
         (dest ? '<span class="detail-tag">' + dest + '</span>' : '') +
-        '<a href="' + originalUrl + '" target="_blank" rel="noopener" class="detail-full-link">📖 Ver recurso completo en DGE Mendoza →</a>' +
         '</div></div></div>';
 
       window.scrollTo(0, 0);
