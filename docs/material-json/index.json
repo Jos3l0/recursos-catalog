@@ -1,0 +1,28 @@
+{
+    "version": "1.0",
+    "generated_at": "2026-05-11T20:43:04+00:00",
+    "source": {
+        "tag_slug": "material",
+        "post_status": "publish"
+    },
+    "counts": {
+        "posts": 2485,
+        "area_tematica": 8,
+        "nivel_educativo": 7,
+        "destinatarios": 3
+    },
+    "files": {
+        "posts": [
+            "posts-1.json",
+            "posts-2.json",
+            "posts-3.json",
+            "posts-4.json",
+            "posts-5.json",
+            "posts-6.json",
+            "posts-7.json"
+        ],
+        "area_tematica": "material-area-tematica.json",
+        "nivel_educativo": "material-nivel-educativo.json",
+        "destinatarios": "material-destinatarios.json"
+    }
+}
